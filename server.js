@@ -29,12 +29,14 @@ app.post('/api/submit', async (req, res) => {
     } catch (err) { res.status(500).send(err.message); }
 });
 
-// ADMIN: Add question
-app.post('/api/admin/questions', async (req, res) => {
-    const { text, category, is_required } = req.body;
+app.post('/api/submit', async (req, res) => {
+    const { respondent_id, question, answer, duration } = req.body;
     try {
-        await pool.query('INSERT INTO questions (text, category, is_required) VALUES ($1, $2, $3)', [text, category, is_required]);
-        res.json({ status: "added" });
+        await pool.query(
+            'INSERT INTO survey_responses (respondent_id, question_text, answer, duration_seconds) VALUES ($1, $2, $3, $4)',
+            [respondent_id, question, answer, duration]
+        );
+        res.status(200).json({ status: "ok" });
     } catch (err) { res.status(500).send(err.message); }
 });
 
