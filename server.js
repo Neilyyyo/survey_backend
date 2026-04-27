@@ -9,49 +9,41 @@ app.use(cors());
 
 const pool = new Pool({ 
     connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false } // Required for Supabase/Render
+    ssl: { rejectUnauthorized: false }
 });
 
-// --- USER ROUTES ---
-
-// Get all active questions for the survey
+// GET all questions (Sorted by category first: demographics then survey)
 app.get('/api/questions', async (req, res) => {
     try {
-        const data = await pool.query('SELECT * FROM questions ORDER BY created_at DESC');
+        const data = await pool.query("SELECT * FROM questions ORDER BY CASE WHEN category = 'demographic' THEN 1 ELSE 2 END, created_at ASC");
         res.json(data.rows);
-    } catch (err) { res.status(500).json(err); }
+    } catch (err) { res.status(500).send(err.message); }
 });
 
-// Submit a timed response
+// POST a timed response
 app.post('/api/submit', async (req, res) => {
     const { question, answer, duration } = req.body;
     try {
-        await pool.query(
-            'INSERT INTO survey_responses (question_text, answer, duration_seconds) VALUES ($1, $2, $3)',
-            [question, answer, duration]
-        );
-        res.status(200).json({ message: "Saved" });
-    } catch (err) { res.status(500).json(err); }
+        await pool.query('INSERT INTO survey_responses (question_text, answer, duration_seconds) VALUES ($1, $2, $3)', [question, answer, duration]);
+        res.status(200).json({ status: "ok" });
+    } catch (err) { res.status(500).send(err.message); }
 });
 
-// --- ADMIN ROUTES ---
-
-// Admin: Add a new question
+// ADMIN: Add question
 app.post('/api/admin/questions', async (req, res) => {
-    const { text } = req.body;
+    const { text, category, is_required } = req.body;
     try {
-        await pool.query('INSERT INTO questions (text) VALUES ($1)', [text]);
-        res.status(200).json({ message: "Question Added" });
-    } catch (err) { res.status(500).json(err); }
+        await pool.query('INSERT INTO questions (text, category, is_required) VALUES ($1, $2, $3)', [text, category, is_required]);
+        res.json({ status: "added" });
+    } catch (err) { res.status(500).send(err.message); }
 });
 
-// Admin: View all results
+// ADMIN: View results
 app.get('/api/admin/results', async (req, res) => {
     try {
         const data = await pool.query('SELECT * FROM survey_responses ORDER BY created_at DESC');
         res.json(data.rows);
-    } catch (err) { res.status(500).json(err); }
+    } catch (err) { res.status(500).send(err.message); }
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(process.env.PORT || 3000);
